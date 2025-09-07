@@ -1,0 +1,53 @@
+name: 🚀 Deploy bpi Saas Server (Self-Hosted Runner)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: 🚀 Deploy App
+    runs-on: self-hosted
+
+    steps:
+      - name: 🔁 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🚀 Pull latest code
+        run: |
+          cd /home/ubuntu/projects
+          git reset --hard
+          git clean -fd
+          git pull origin main
+
+      - name: 🚀 Run health check and deploy with PM2
+        run: |
+          cd /home/ubuntu/projects
+
+          # Start temporary instance for health check
+          PORT=8888 node dist/server.js &
+          APP_PID=$!
+
+          # Wait for server to start
+          sleep 5
+
+          # Health check
+          if ! curl --fail http://localhost:8888; then
+            echo "❌ Health check failed"
+            kill $APP_PID
+            exit 1
+          fi
+
+          # Kill temporary instance
+          kill $APP_PID
+
+          # Deploy using PM2
+          if pm2 describe asian-tourism-fair-fair > /dev/null 2>&1; then
+            pm2 restart asian-tourism-fair-fair
+          else
+            pm2 start dist/server.js --name asian-tourism-fair-fair
+          fi
+
+          # Save PM2 process list for startup
+          pm2 save
