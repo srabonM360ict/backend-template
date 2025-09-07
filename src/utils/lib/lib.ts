@@ -1,18 +1,13 @@
 import bcrypt from "bcryptjs";
-import * as admin from "firebase-admin";
 import fs from "fs";
 import jwt, { SignOptions } from "jsonwebtoken";
-import { Knex } from "knex";
 import nodemailer from "nodemailer";
 import { Attachment } from "nodemailer/lib/mailer";
 import path from "path";
 import puppeteer from "puppeteer";
 import QRCode from "qrcode";
 import config from "../../app/config";
-import {
-  TDB,
-  TypeUser,
-} from "../../features/public/utils/types/publicCommon.types";
+import { TDB } from "../../features/public/utils/types/publicCommon.types";
 
 import CommonModel from "../../models/commonModel/commonModel";
 import { GENERATE_AUTO_UNIQUE_ID } from "../miscellaneous/constants";
@@ -42,7 +37,7 @@ class Lib {
       });
 
       const info = await transporter.sendMail({
-        from: `BPI Management <${config.EMAIL_SEND_EMAIL_ID}>`,
+        from: `Asian Tourism Fair <${config.EMAIL_SEND_EMAIL_ID}>`,
         cc,
         to: email,
         subject: emailSub,
@@ -292,114 +287,6 @@ class Lib {
 
     return false;
   };
-
-  public static async sendNotificationToMobile(params: {
-    to: string;
-    title: string;
-    content: string;
-    data?: any;
-  }) {
-    try {
-      const serviceAccountPath = path.join(__dirname, "../../../fcm.json");
-      const serviceAccount = await Lib.safeParseJSON(
-        fs.readFileSync(serviceAccountPath, "utf-8")
-      );
-      if (!admin.apps.length) {
-        admin.initializeApp({
-          credential: admin.credential.cert({
-            ...(serviceAccount as admin.ServiceAccount),
-            privateKey: config.PRIVATE_KEY,
-          }),
-        });
-      }
-
-      const { to, title, content, data } = params;
-      const stringData = {} as Record<string, string>;
-      for (const key in data || {}) {
-        stringData[key] = String(data[key]);
-      }
-      const message = {
-        token: to,
-        notification: {
-          title,
-          body: content,
-        },
-        data: stringData,
-      };
-
-      const response = await admin.messaging().send(message);
-      console.log("Notification sent successfully userID:", to);
-      return response;
-    } catch (error) {
-      console.error("Error sending notification:", error);
-    }
-  }
-
-  public static async generateLoginIdForTeacher({
-    institute_code,
-    db,
-    userType,
-    schema,
-  }: {
-    institute_code: string;
-    db: Knex;
-    userType: TypeUser;
-    schema: string;
-  }) {
-    const year = new Date().getFullYear().toString().slice(-2);
-
-    const lastUser = await db("users")
-      .withSchema(schema)
-      .whereRaw("split_part(login_id, '.', 1) = ?", [institute_code])
-      .andWhere("user_type", userType)
-      .andWhereRaw("split_part(login_id, '.', 2) = ?", [year])
-      .orderByRaw("CAST(split_part(login_id, '.', 3) AS INTEGER) DESC")
-      .first();
-
-    let nextSerial = 1001;
-    if (lastUser && lastUser.login_id) {
-      const lastSerial = parseInt(lastUser.login_id.split(".")[2], 10);
-      nextSerial = lastSerial + 1;
-    }
-
-    const randomNum = Math.floor(Math.random() * 9) + 1;
-
-    return `${institute_code}.${year}.${nextSerial}${randomNum}`;
-  }
-  public static async generateLoginCodeForStudent({
-    institute_code,
-    db,
-    userType,
-    schema,
-    dpt_code,
-    sessionYear,
-  }: {
-    institute_code: string;
-    db: Knex;
-    userType: TypeUser;
-    schema: string;
-    dpt_code: number;
-    sessionYear: string;
-  }) {
-    const lastUser = await db("users")
-      .withSchema(schema)
-      .where("is_deleted", false)
-      .whereRaw("split_part(code, '.', 1) = ?", [institute_code])
-      .andWhere("user_type", userType)
-      .andWhereRaw("split_part(code, '.', 2) = ?", [sessionYear])
-      .andWhereRaw("split_part(code, '.', 3) = ?", [dpt_code.toString()])
-      .orderByRaw("CAST(split_part(code, '.', 4) AS INTEGER) DESC")
-      .first();
-
-    const generateRandom = Math.floor(Math.random() * 9) + 1;
-    let nextSerial = 1001;
-    if (lastUser && lastUser.code) {
-      const lastSerial = parseInt(lastUser.code.split(".")[3].slice(0, -1), 10);
-      nextSerial = lastSerial + 1;
-    }
-
-    return `${institute_code}.${sessionYear}.${dpt_code}.${nextSerial}${generateRandom}`;
-  }
 }
 
 export default Lib;

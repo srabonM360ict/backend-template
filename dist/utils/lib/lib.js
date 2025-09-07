@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -36,7 +13,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const admin = __importStar(require("firebase-admin"));
 const fs_1 = __importDefault(require("fs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
@@ -60,7 +36,7 @@ class Lib {
                     },
                 });
                 const info = yield transporter.sendMail({
-                    from: `BPI Management <${config_1.default.EMAIL_SEND_EMAIL_ID}>`,
+                    from: `Asian Tourism Fair <${config_1.default.EMAIL_SEND_EMAIL_ID}>`,
                     cc,
                     to: email,
                     subject: emailSub,
@@ -255,77 +231,6 @@ class Lib {
                     break;
             }
             return "AS" + NoCode + currYear + newId;
-        });
-    }
-    static sendNotificationToMobile(params) {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const serviceAccountPath = path_1.default.join(__dirname, "../../../fcm.json");
-                const serviceAccount = yield Lib.safeParseJSON(fs_1.default.readFileSync(serviceAccountPath, "utf-8"));
-                if (!admin.apps.length) {
-                    admin.initializeApp({
-                        credential: admin.credential.cert(Object.assign(Object.assign({}, serviceAccount), { privateKey: config_1.default.PRIVATE_KEY })),
-                    });
-                }
-                const { to, title, content, data } = params;
-                const stringData = {};
-                for (const key in data || {}) {
-                    stringData[key] = String(data[key]);
-                }
-                const message = {
-                    token: to,
-                    notification: {
-                        title,
-                        body: content,
-                    },
-                    data: stringData,
-                };
-                const response = yield admin.messaging().send(message);
-                console.log("Notification sent successfully userID:", to);
-                return response;
-            }
-            catch (error) {
-                console.error("Error sending notification:", error);
-            }
-        });
-    }
-    static generateLoginIdForTeacher(_a) {
-        return __awaiter(this, arguments, void 0, function* ({ institute_code, db, userType, schema, }) {
-            const year = new Date().getFullYear().toString().slice(-2);
-            const lastUser = yield db("users")
-                .withSchema(schema)
-                .whereRaw("split_part(login_id, '.', 1) = ?", [institute_code])
-                .andWhere("user_type", userType)
-                .andWhereRaw("split_part(login_id, '.', 2) = ?", [year])
-                .orderByRaw("CAST(split_part(login_id, '.', 3) AS INTEGER) DESC")
-                .first();
-            let nextSerial = 1001;
-            if (lastUser && lastUser.login_id) {
-                const lastSerial = parseInt(lastUser.login_id.split(".")[2], 10);
-                nextSerial = lastSerial + 1;
-            }
-            const randomNum = Math.floor(Math.random() * 9) + 1;
-            return `${institute_code}.${year}.${nextSerial}${randomNum}`;
-        });
-    }
-    static generateLoginCodeForStudent(_a) {
-        return __awaiter(this, arguments, void 0, function* ({ institute_code, db, userType, schema, dpt_code, sessionYear, }) {
-            const lastUser = yield db("users")
-                .withSchema(schema)
-                .where("is_deleted", false)
-                .whereRaw("split_part(code, '.', 1) = ?", [institute_code])
-                .andWhere("user_type", userType)
-                .andWhereRaw("split_part(code, '.', 2) = ?", [sessionYear])
-                .andWhereRaw("split_part(code, '.', 3) = ?", [dpt_code.toString()])
-                .orderByRaw("CAST(split_part(code, '.', 4) AS INTEGER) DESC")
-                .first();
-            const generateRandom = Math.floor(Math.random() * 9) + 1;
-            let nextSerial = 1001;
-            if (lastUser && lastUser.code) {
-                const lastSerial = parseInt(lastUser.code.split(".")[3].slice(0, -1), 10);
-                nextSerial = lastSerial + 1;
-            }
-            return `${institute_code}.${sessionYear}.${dpt_code}.${nextSerial}${generateRandom}`;
         });
     }
 }
